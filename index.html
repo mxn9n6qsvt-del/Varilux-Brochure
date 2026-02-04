@@ -5,135 +5,99 @@
     <title>Varilux Digital Experience</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        :root { --v-blue: #00a0df; }
-        body { background: #1a1a1a; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; font-family: sans-serif; }
-        
-        /* The Stage - Sized to fit most screens without zooming */
-        #stage {
-            width: 85vw;
-            height: 80vh;
-            perspective: 2000px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        #book {
-            width: 45%; /* Adjusted for better fit */
-            height: 90%;
-            position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.5s;
-            cursor: pointer;
-        }
-
-        .page {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            transform-origin: left center;
-            transform-style: preserve-3d;
-            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .front, .back {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            background: white;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        .back {
-            transform: rotateY(180deg);
-            background: #f0f0f0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .flipped { transform: rotateY(-180deg); }
-
+        body { background: #111; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; font-family: sans-serif; color: white; }
+        #viewport { width: 90vw; height: 85vh; perspective: 3000px; display: flex; justify-content: center; align-items: center; }
+        #book { width: 45%; height: 100%; position: relative; transform-style: preserve-3d; }
+        .page { position: absolute; width: 100%; height: 100%; top: 0; left: 0; transform-origin: left center; transform-style: preserve-3d; transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1); }
+        .front, .back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; background: white; box-shadow: 0 5px 25px rgba(0,0,0,0.5); border-radius: 0 5px 5px 0; }
+        .back { transform: rotateY(180deg); background: #eee; border-radius: 5px 0 0 5px; }
+        .flipped { transform: rotateY(-180deg) !important; }
         canvas { width: 100%; height: 100%; object-fit: contain; }
-
-        #hint {
-            position: fixed;
-            bottom: 20px;
-            color: rgba(255,255,255,0.5);
-            letter-spacing: 2px;
-            font-size: 12px;
-            text-transform: uppercase;
-        }
+        #click-left, #click-right { position: fixed; top: 0; width: 35%; height: 100%; z-index: 9999; cursor: pointer; }
+        #click-left { left: 0; } #click-right { right: 0; }
+        #status-msg { position: fixed; top: 20px; background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 20px; font-size: 12px; z-index: 10000; border: 1px solid var(--v-blue); }
     </style>
 </head>
 <body>
 
-<div id="hint">Click pages to flip forward or backward</div>
+<div id="status-msg">Loading Varilux Portfolio...</div>
+<div id="click-left"></div>
+<div id="click-right"></div>
 
-<div id="stage">
+<div id="viewport">
     <div id="book"></div>
 </div>
 
 <audio id="flipSound" src="https://www.soundjay.com/misc/sounds/page-flip-01a.mp3" preload="auto"></audio>
 
 <script>
-    const pdfPath = '117220_PRO_VAR_21.pdf';
-    let current = 0;
+    // This looks for the file in the SAME folder as this HTML file
+    const pdfPath = './117220_PRO_VAR_21.pdf'; 
+
+    let currentIdx = 0;
     const book = document.getElementById('book');
     const audio = document.getElementById('flipSound');
+    const status = document.getElementById('status-msg');
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
     async function init() {
-        const pdf = await pdfjsLib.getDocument(pdfPath).promise;
-
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 1.5 }); // Lower scale to prevent zoom issues
+        try {
+            const pdf = await pdfjsLib.getDocument(pdfPath).promise;
+            status.innerText = "Click Right to Flip";
             
-            const pageEl = document.createElement('div');
-            pageEl.className = 'page';
-            pageEl.style.zIndex = pdf.numPages - i;
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({ scale: 1.5 });
+                
+                const pageEl = document.createElement('div');
+                pageEl.className = 'page';
+                pageEl.style.zIndex = pdf.numPages - i;
 
-            const front = document.createElement('div');
-            front.className = 'front';
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            
-            const back = document.createElement('div');
-            back.className = 'back';
-            back.innerHTML = `<div style="color:#ccc; font-style:italic">Varilux®</div>`;
+                const front = document.createElement('div');
+                front.className = 'front';
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                
+                const back = document.createElement('div');
+                back.className = 'back';
+                back.innerHTML = `<div style="color:#999; font-size:10px;">VARILUX® TECHNOLOGY</div>`;
 
-            front.appendChild(canvas);
-            pageEl.appendChild(front);
-            pageEl.appendChild(back);
-            
-            // Interaction Logic: Click the right side to go forward, left side to go back
-            pageEl.onclick = (e) => {
-                const isFlipped = pageEl.classList.contains('flipped');
-                if (!isFlipped && i === current + 1) {
-                    pageEl.classList.add('flipped');
-                    audio.currentTime = 0;
-                    audio.play();
-                    current++;
-                } else if (isFlipped && i === current) {
-                    pageEl.classList.remove('flipped');
-                    audio.currentTime = 0;
-                    audio.play();
-                    current--;
-                }
-                e.stopPropagation();
-            };
-
-            book.appendChild(pageEl);
+                front.appendChild(canvas);
+                pageEl.appendChild(front);
+                pageEl.appendChild(back);
+                book.appendChild(pageEl);
+            }
+        } catch (err) {
+            status.style.color = "red";
+            status.innerText = "FILE ERROR: Ensure '" + pdfPath + "' is in your GitHub main folder.";
+            console.error(err);
         }
     }
+
+    document.getElementById('click-right').onclick = () => {
+        const pages = document.querySelectorAll('.page');
+        if (currentIdx < pages.length) {
+            pages[currentIdx].classList.add('flipped');
+            audio.currentTime = 0;
+            audio.play().catch(()=>{}); 
+            currentIdx++;
+            status.style.display = 'none';
+        }
+    };
+
+    document.getElementById('click-left').onclick = () => {
+        const pages = document.querySelectorAll('.page');
+        if (currentIdx > 0) {
+            currentIdx--;
+            pages[currentIdx].classList.remove('flipped');
+            audio.currentTime = 0;
+            audio.play().catch(()=>{});
+        }
+    };
 
     init();
 </script>
