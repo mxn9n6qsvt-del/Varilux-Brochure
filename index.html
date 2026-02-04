@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Varilux Digital Portfolio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        :root { --v-blue: #00a0df; }
+        body { background: #f4f4f4; margin: 0; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; }
+        #controls { padding: 20px; z-index: 100; }
+        #container { perspective: 2000px; width: 90%; max-width: 900px; height: 80vh; position: relative; margin-top: 20px; }
+        #book { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; }
+        .page { 
+            position: absolute; width: 50%; height: 100%; right: 0; top: 0; 
+            transform-origin: left; transition: transform 0.8s ease-in-out; 
+            transform-style: preserve-3d; background: white; border: 1px solid #ddd;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        }
+        canvas { width: 100%; height: 100%; object-fit: contain; backface-visibility: hidden; }
+        .flipped { transform: rotateY(-180deg); }
+        button { padding: 10px 20px; cursor: pointer; background: var(--v-blue); color: white; border: none; border-radius: 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <button onclick="prev()">Back</button>
+    <span id="label" style="margin: 0 15px;">Loading Varilux Data...</span>
+    <button onclick="next()">Next Page</button>
+</div>
+
+<div id="container">
+    <div id="book"></div>
+</div>
+
+<script>
+    const url = '117220_PRO_VAR_21.pdf';
+    let pdfDoc = null, current = 0;
+    const book = document.getElementById('book');
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+    async function init() {
+        try {
+            pdfDoc = await pdfjsLib.getDocument(url).promise;
+            document.getElementById('label').innerText = `Varilux Portfolio: Page 1 of ${pdfDoc.numPages}`;
+            
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                const page = await pdfDoc.getPage(i);
+                const viewport = page.getViewport({ scale: 1.5 });
+                const div = document.createElement('div');
+                div.className = 'page';
+                div.style.zIndex = pdfDoc.numPages - i;
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                div.appendChild(canvas);
+                book.appendChild(div);
+            }
+        } catch (e) {
+            document.getElementById('label').innerText = "Error: Ensure PDF filename is exact.";
+        }
+    }
+
+    function next() {
+        const pages = document.querySelectorAll('.page');
+        if (current < pages.length - 1) {
+            pages[current].classList.add('flipped');
+            current++;
+            update();
+        }
+    }
+
+    function prev() {
+        const pages = document.querySelectorAll('.page');
+        if (current > 0) {
+            current--;
+            pages[current].classList.remove('flipped');
+            update();
+        }
+    }
+
+    function update() {
+        document.getElementById('label').innerText = `Page ${current + 1} of ${pdfDoc.numPages}`;
+    }
+
+    init();
+</script>
+</body>
+</html>
