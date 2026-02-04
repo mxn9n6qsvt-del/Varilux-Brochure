@@ -2,29 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Varilux Interactive Portfolio</title>
+    <title>Varilux Digital Experience</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        :root { --v-blue: #00a0df; --paper: #ffffff; }
-        body { background: #333; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-x: hidden; font-family: sans-serif; }
+        :root { --v-blue: #00a0df; }
+        body { background: #1a1a1a; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; font-family: sans-serif; }
         
-        #nav { margin: 20px; z-index: 100; display: flex; gap: 20px; align-items: center; color: white; }
-        
-        /* The 3D Book Layout */
+        /* The Stage - Sized to fit most screens without zooming */
         #stage {
-            width: 1000px;
-            height: 700px;
-            perspective: 3000px; /* High depth for better flip effect */
-            margin-top: 20px;
+            width: 85vw;
+            height: 80vh;
+            perspective: 2000px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         #book {
-            width: 50%;
-            height: 100%;
+            width: 45%; /* Adjusted for better fit */
+            height: 90%;
             position: relative;
             transform-style: preserve-3d;
-            margin-left: 50%; /* Spine center */
             transition: transform 0.5s;
+            cursor: pointer;
         }
 
         .page {
@@ -35,24 +35,21 @@
             left: 0;
             transform-origin: left center;
             transform-style: preserve-3d;
-            transition: transform 1.2s cubic-bezier(0.645, 0.045, 0.355, 1);
-            cursor: pointer;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Front of page (PDF content) */
         .front, .back {
             position: absolute;
             width: 100%;
             height: 100%;
             backface-visibility: hidden;
-            background: var(--paper);
-            box-shadow: inset 3px 0 10px rgba(0,0,0,0.1), 5px 5px 15px rgba(0,0,0,0.3);
+            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
-        /* Back of page (The reverse side when flipped) */
         .back {
             transform: rotateY(180deg);
-            background: #f9f9f9;
+            background: #f0f0f0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -62,96 +59,80 @@
 
         canvas { width: 100%; height: 100%; object-fit: contain; }
 
-        button {
-            padding: 12px 25px;
-            background: var(--v-blue);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
+        #hint {
+            position: fixed;
+            bottom: 20px;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 2px;
+            font-size: 12px;
+            text-transform: uppercase;
         }
-        button:hover { background: #0080b0; }
-        #page-info { font-weight: bold; font-size: 18px; }
     </style>
 </head>
 <body>
 
-<div id="nav">
-    <button onclick="prevPage()">PREVIOUS</button>
-    <div id="page-info">Loading Varilux Lenses...</div>
-    <button onclick="nextPage()">NEXT</button>
-</div>
+<div id="hint">Click pages to flip forward or backward</div>
 
 <div id="stage">
-    <div id="book" id="book-container"></div>
+    <div id="book"></div>
 </div>
+
+<audio id="flipSound" src="https://www.soundjay.com/misc/sounds/page-flip-01a.mp3" preload="auto"></audio>
 
 <script>
     const pdfPath = '117220_PRO_VAR_21.pdf';
-    let pdf = null;
     let current = 0;
     const book = document.getElementById('book');
+    const audio = document.getElementById('flipSound');
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
     async function init() {
-        try {
-            pdf = await pdfjsLib.getDocument(pdfPath).promise;
-            updateLabel();
+        const pdf = await pdfjsLib.getDocument(pdfPath).promise;
 
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const viewport = page.getViewport({ scale: 2 });
-                
-                const pageElement = document.createElement('div');
-                pageElement.className = 'page';
-                pageElement.style.zIndex = pdf.numPages - i;
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 1.5 }); // Lower scale to prevent zoom issues
+            
+            const pageEl = document.createElement('div');
+            pageEl.className = 'page';
+            pageEl.style.zIndex = pdf.numPages - i;
 
-                const front = document.createElement('div');
-                front.className = 'front';
-                
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                
-                const back = document.createElement('div');
-                back.className = 'back';
-                back.innerHTML = `<img src="https://www.essilorusa.com/content/dam/essilor-redesign/logos/varilux-logo.png" style="width:150px; opacity:0.2">`;
+            const front = document.createElement('div');
+            front.className = 'front';
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            
+            const back = document.createElement('div');
+            back.className = 'back';
+            back.innerHTML = `<div style="color:#ccc; font-style:italic">Varilux®</div>`;
 
-                front.appendChild(canvas);
-                pageElement.appendChild(front);
-                pageElement.appendChild(back);
-                book.appendChild(pageElement);
-            }
-        } catch (err) {
-            document.getElementById('page-info').innerText = "Error: Check file name.";
+            front.appendChild(canvas);
+            pageEl.appendChild(front);
+            pageEl.appendChild(back);
+            
+            // Interaction Logic: Click the right side to go forward, left side to go back
+            pageEl.onclick = (e) => {
+                const isFlipped = pageEl.classList.contains('flipped');
+                if (!isFlipped && i === current + 1) {
+                    pageEl.classList.add('flipped');
+                    audio.currentTime = 0;
+                    audio.play();
+                    current++;
+                } else if (isFlipped && i === current) {
+                    pageEl.classList.remove('flipped');
+                    audio.currentTime = 0;
+                    audio.play();
+                    current--;
+                }
+                e.stopPropagation();
+            };
+
+            book.appendChild(pageEl);
         }
-    }
-
-    function nextPage() {
-        const pages = document.querySelectorAll('.page');
-        if (current < pages.length) {
-            pages[current].classList.add('flipped');
-            current++;
-            updateLabel();
-        }
-    }
-
-    function prevPage() {
-        const pages = document.querySelectorAll('.page');
-        if (current > 0) {
-            current--;
-            pages[current].classList.remove('flipped');
-            updateLabel();
-        }
-    }
-
-    function updateLabel() {
-        document.getElementById('page-info').innerText = `Varilux Portfolio: ${current + 1} / ${pdf.numPages}`;
     }
 
     init();
